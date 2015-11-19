@@ -252,16 +252,22 @@ public class BuildLogIndication extends Indication {
             if (textSourceIsUrl) {
                 testText = testText.replaceAll("/\\./", "/");
                 Matcher urlMatcher = URL_PATTERN.matcher(testText);
+                int numPartsDiscount = 0;
                 if (urlMatcher.matches()) {
                     String[] urlParts = new String[NUM_OF_URL_PARTS];
                     for (int i = 0; i < urlParts.length; i++) {
-                        urlParts[i] = urlMatcher.group(i + 1);
+                        try {
+                            urlParts[i] = urlMatcher.group(i + 1);
+                        } catch ( IndexOutOfBoundsException e ) {
+                            // This is not a folder like URL
+                            numPartsDiscount = 1;
+                        }
                     }
 
                     AbstractBuild build = null;
                     ItemGroup getItemInstance = null;
 
-                    if (urlParts[0] != null && urlParts[0].split("/job").length > 0) {
+                    if (urlParts[0] != null && urlParts[0] != "job" && urlParts[0].split("/job").length > 0) {
                         /*
                          * We matched a folders job. Let's get the jobs up to the part were the next
                          * iteration can be continued from
@@ -290,20 +296,20 @@ public class BuildLogIndication extends Indication {
                        Type 3: .../<job>/<buildNumber>/<matrixInfo>/
                      */
 
-                    if (getItemInstance.getItem(urlParts[2]) instanceof AbstractProject
-                            && isValidBuildId(urlParts[3])) {
-                        AbstractProject project = (AbstractProject)getItemInstance.getItem(urlParts[2]);
-                        build = getBuildById(project, urlParts[3]);
-                    } else if (getItemInstance.getItem(urlParts[1]) instanceof MatrixProject
-                            && isValidBuildId(urlParts[3])) {
-                        MatrixProject project = (MatrixProject)getItemInstance.getItem(urlParts[1]);
-                        MatrixConfiguration configuration = project.getItem(urlParts[2]);
-                        build = getBuildById(configuration, urlParts[3]);
-                    } else if (getItemInstance.getItem(urlParts[1]) instanceof MatrixProject
-                            && isValidBuildId(urlParts[2])) {
-                        MatrixProject matrixProject = (MatrixProject)getItemInstance.getItem(urlParts[1]);
-                        MatrixConfiguration configuration = matrixProject.getItem(urlParts[3]);
-                        build = getBuildById(configuration, urlParts[2]);
+                    if (getItemInstance.getItem(urlParts[2 - numPartsDiscount]) instanceof AbstractProject
+                            && isValidBuildId(urlParts[3 - numPartsDiscount])) {
+                        AbstractProject project = (AbstractProject)getItemInstance.getItem(urlParts[2 - numPartsDiscount]);
+                        build = getBuildById(project, urlParts[3 - numPartsDiscount]);
+                    } else if (getItemInstance.getItem(urlParts[1 - numPartsDiscount]) instanceof MatrixProject
+                            && isValidBuildId(urlParts[3 - numPartsDiscount])) {
+                        MatrixProject project = (MatrixProject)getItemInstance.getItem(urlParts[1 - numPartsDiscount]);
+                        MatrixConfiguration configuration = project.getItem(urlParts[2 - numPartsDiscount]);
+                        build = getBuildById(configuration, urlParts[3 - numPartsDiscount]);
+                    } else if (getItemInstance.getItem(urlParts[1 - numPartsDiscount]) instanceof MatrixProject
+                            && isValidBuildId(urlParts[2 - numPartsDiscount])) {
+                        MatrixProject matrixProject = (MatrixProject)getItemInstance.getItem(urlParts[1 - numPartsDiscount]);
+                        MatrixConfiguration configuration = matrixProject.getItem(urlParts[3 - numPartsDiscount]);
+                        build = getBuildById(configuration, urlParts[2 - numPartsDiscount]);
                     }
                     if (build != null) {
                         try {
